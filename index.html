@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Misteri Mansion Rose: Crimson Decision</title>
+    <style>
+        :root {
+            --bg-color: #0a0b0d;
+            --panel-color: #12141c;
+            --text-color: #d1d5db;
+            --accent-cyan: #06b6d4;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --accent-green: #10b981;
+            --accent-gold: #d4af37;
+            --accent-purple: #a855f7;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .flash {
+            animation: flash-anim 0.3s ease-out;
+        }
+        @keyframes flash-anim {
+            0% { background-color: #fff; opacity: 1; }
+            100% { background-color: var(--bg-color); }
+        }
+
+        .shake {
+            animation: shake-anim 0.3s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake-anim {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        #game-container {
+            background-color: var(--panel-color);
+            border: 1px solid #222738;
+            border-top: 4px solid var(--accent-red);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 750px;
+            height: 620px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+        }
+
+        #status-bar {
+            background-color: #1a1d29;
+            padding: 12px 20px;
+            border-bottom: 1px solid #222738;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #log-area {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            line-height: 1.6;
+        }
+
+        p {
+            margin: 0 0 14px 0;
+            opacity: 0;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .system-msg { color: #6b7280; font-style: italic; }
+        .clue-alert { color: var(--accent-cyan); font-weight: bold; }
+        .danger-text { color: var(--accent-red); font-weight: bold; }
+        .secret-text { color: var(--accent-gold); font-weight: bold; text-shadow: 0 0 8px rgba(212,175,55,0.4); }
+        .purple-text { color: var(--accent-purple); font-weight: bold; }
+
+        #control-area {
+            background-color: #161924;
+            padding: 20px;
+            border-top: 1px solid #222738;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background-color: #090a0f;
+            border: 1px solid #2a3147;
+            border-radius: 6px;
+            color: #fff;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
+        }
+
+        button {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #f1f5f9;
+            padding: 12px 20px;
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #334155, #1e293b);
+            border-color: var(--accent-yellow);
+            color: var(--accent-yellow);
+            transform: translateY(-1px);
+        }
+
+        button.action-btn {
+            text-align: center;
+            font-weight: bold;
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            border-color: #06b6d4;
+        }
+
+        button.action-btn:hover {
+            color: #fff;
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+        }
+
+        .secret-link {
+            color: var(--accent-gold);
+            text-decoration: underline;
+            font-weight: bold;
+        }
+
+        #log-area::-webkit-scrollbar { width: 6px; }
+        #log-area::-webkit-scrollbar-track { background: transparent; }
+        #log-area::-webkit-scrollbar-thumb { background: #222738; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="status-bar">
+        <div>KASUS: <span style="color: var(--accent-red)">Mansion Rose v5.0</span></div>
+        <div>BUKTI: <span id="inv-status" style="color: var(--accent-yellow)">Kosong</span></div>
+    </div>
+    <div id="log-area"></div>
+    <div id="control-area"></div>
+</div>
+
+<script>
+    let state = { tahu_motif: false, bukti_asuransi: false, sisa_racun: false, kunci_cadangan: false, salah_jawab: 0 };
+    const logArea = document.getElementById('log-area');
+    const controlArea = document.getElementById('control-area');
+    const invStatus = document.getElementById('inv-status');
+
+    function playSound(freq, duration, type='sine') {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+    }
+
+    function triggerEfekKilat() {
+        document.body.classList.add('flash');
+        document.getElementById('game-container').classList.add('shake');
+        playSound(120, 0.4, 'sawtooth');
+        setTimeout(() => {
+            document.body.classList.remove('flash');
+            document.getElementById('game-container').classList.remove('shake');
+        }, 400);
+    }
+
+    function cetak(teks, gayaClass = '') {
+        const p = document.createElement('p');
+        p.className = gayaClass;
+        p.innerHTML = teks;
+        logArea.appendChild(p);
+        logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    function bersihkan() {
+        logArea.innerHTML = '';
+        controlArea.innerHTML = '';
+    }
+
+    function scene_menu() {
+        bersihkan();
+        state.salah_jawab = 0;
+        state.tahu_motif = false;
+        state.bukti_asuransi = false;
+        state.sisa_racun = false;
+        state.kunci_cadangan = false;
+        invStatus.innerText = "Kosong";
+        
+        cetak("CRIMSON ADVENTURE v5.0 [LONG INVESTIGATION]", "system-msg");
+        cetak("Misteri Tragedi Mansion Rose", "danger-text" + " style='font-size: 24px;'");
+        cetak("8 Soal Investigasi Utama, 3 Jalur Konfrontasi, dan 8 Akhir Kisah yang Berbeda menanti ketajaman logika Anda.", "system-msg");
+        
+        controlArea.innerHTML = `
+            <button class="action-btn" onclick="ch1_p1()">[▶] Mulai Investigasi Kasus</button>
+        `;
+    }
+
+    // --- TEKA-TEKI 1 ---
+    function ch1_p1() {
+        bersihkan();
+        playSound(440, 0.1);
+        cetak("CHAPTER 1: OLAH TKP KAMAR TERKUNCI", "danger-text");
+        cetak("Malam badai, Juni 2026. Anda memeriksa jasad Tuan Arthur yang tergantung kaku di ruang kerjanya yang terkunci rapat dari dalam.");
+        cetak("Di bawah kakinya, terdapat genangan air murni yang aneh. Hujan di luar turun lurus, mustahil jika air itu adalah cipratan.");
+        cetak("--- TEKA-TEKI 1: LOGIKA MATERIL ---", "clue-alert");
+        cetak("Benda padat apa yang digunakan pelaku sebagai pijakan korban sebelum benda tersebut mencair sepenuhnya?");
+
+        controlArea.innerHTML = `
+            <div class="input-wrapper">
+                <input type="text" id="input1" placeholder="Ketik jawaban (1 kata)..." autocomplete="off">
+                <button class="action-btn" onclick="validasi_ch1_p1()">Kirim</button>
+            </div>
+        `;
+        document.getElementById('input1').focus();
+    }
+
+    function validasi_ch1_p1() {
+        const jawab = document.getElementById('input1').value.trim().toLowerCase();
+        if (jawab.includes("es")) { playSound(600, 0.1); } else { playSound(250, 0.2); state.salah_jawab++; }
+        ch1_p2();
+    }
+
+    // --- TEKA-TEKI 2 ---
+    function ch1_p2() {
+        bersihkan();
+        cetak("--- TEKA-TEKI 2: ANALISIS KRONOLOGI ---", "clue-alert");
+        cetak("Sebuah jam dinding hancur akibat terjangan peluru. Jarum pendek retak berada di antara angka 10 dan 11, sedangkan jarum panjang membeku menunjuk tepat ke angka 8.");
+        cetak("Pukul berapa penembakan jam tersebut terjadi? (Format 24 jam malam hari, contoh: 21:30)");
+
+        controlArea.innerHTML = `
+            <div class="input-wrapper">
+                <input type="text" id="input2" placeholder="HH:MM..." autocomplete="off">
+                <button class="action-btn" onclick="validasi_ch1_p2()">Kirim</button>
+            </div>
+        `;
+        document.getElementById('input2').focus();
+    }
+
+    function validasi_ch1_p2() {
+        const jawab = document.getElementById('input2').value.trim();
+        if (jawab === "22:40") { playSound(600, 0.1); state.tahu_motif = true; } else { playSound(250, 0.2); state.salah_jawab++; }
+        ch1_p3();
+    }
+
+    // --- TEKA-TEKI 3 (BARU) ---
+    function ch1_p3() {
+        bersihkan();
+        cetak("--- TEKA-TEKI 3: SURAT WASIAT PALSU ---", "clue-alert");
+        cetak("Di meja kerja Arthur, terdapat secarik surat ketikan komputer yang diklaim sebagai surat bunuh diri.");
+        cetak("Isi surat: <i>'Saya menyerah pada takdir malam ini. - Arthur, 30 Februari 2026.'</i>");
+        cetak("Ada kebohongan fatal yang membuktikan surat ini sengaja diketik orang lain. Kata apa dari isi surat di atas yang menjadi bukti ketidakmungkinan tersebut?");
+
+        controlArea.innerHTML = `
+            <div class="input-wrapper">
+                <input type="text" id="input3" placeholder="Ketik kata yang salah..." autocomplete="off">
+                <button class="action-btn" onclick="validasi_ch1_p3()">Kirim</button>
+            </div>
+        `;
+        document.getElementById('input3').focus();
+    }
+
+    function validasi_ch1_p3() {
+        const jawab = document.getElementById('input3').value.trim().toLowerCase();
+        if (jawab.includes("februari") || jawab.includes("30")) { playSound(600, 0.1); } else { playSound(250, 0.2); state.salah_jawab++; }
+        ch1_p4();
+    }
+
+    // --- TEKA-TEKI 4 (BARU) ---
+    function ch1_p4() {
+        bersihkan();
+        cetak("--- TEKA-TEKI 4: ANALISIS LUKA ---", "clue-alert");
+        cetak("Anda memeriksa leher Arthur. Terdapat memar melingkar horizontal penuh yang tebal di leher bawah, padahal simpul tali gantungan berada di atas kepala bagian belakang (yang seharusnya membentuk pola huruf V).");
+        cetak("Hal ini menandakan korban sebenarnya sempat diapakan sebelum digantung?");
+
+        controlArea.innerHTML = `
+            <div class="input-wrapper">
+                <input type="text" id="input4" placeholder="Ketik tindakan (contoh: diracun/dicekik)..." autocomplete="off">
+                <button class="action-btn" onclick="validasi_ch1_p4()">Kirim</button>
+            </div>
+        `;
+        document.getElementById('input4').focus();
+    }
+
+    function validasi_ch1_p4() {
+        const jawab = document.getElementById('input4').value.trim().toLowerCase();
+        if (jawab.includes("cekik") || jawab.includes("jerat")) { playSound(600, 0.1); } else { playSound(250, 0.2); state.salah_jawab++; }
+        ch2_p1();
+    }
+
+    // --- TEKA-TEKI 5 ---
+    function ch2_p1() {
+        bersihkan();
+        cetak("CHAPTER 2: PASAL ALIBI & SAKSI MANSION", "danger-text");
+        cetak("Saksi dikumpulkan di ruang tengah. Tiga orang memberikan alibi:");
+        cetak("• JON (Pelayan): 'Saya mencuci piring di dapur lantai 1 dari jam 22:00 sampai 23:00.'");
+        cetak("• CLARA (Istri): 'Saya tertidur pulas di kamar utama lantai 2 sejak jam 21:00.'");
+        cetak("• ARDY (Pengacara): 'Saya menyalin berkas di ruang arsip lantai 1 pukul 22:30.'");
+        cetak("<i>Pengingat: Pembunuhan di lantai 2 terjadi pukul 22:40. Korban sempat berteriak histeris sebelum tewas.</i>", "system-msg");
+        cetak("--- TEKA-TEKI 5: ELIMINASI SAKSI ---", "clue-alert");
+        cetak("Siapakah yang posisinya paling dekat dengan kamar korban di lantai yang sama, namun mengaku tidak mendengar apa pun?");
+
+        controlArea.innerHTML = `
+            <div class="input-wrapper">
+                <input type="text" id="input5" placeholder="Ketik nama saksi..." autocomplete="off">
+                <button class="action-btn" onclick="validasi_ch2_p1()">Kirim</button>
+            </div>
+        `;
+        document.getElementById('input5').focus();
+    }
+
+    function validasi_ch2_p1() {
+        const jawab = document.getElementById('input5').value.trim().toUpperCase();
+        if (jawab === "CLARA") { playSound(600, 0.1); } else { playSound(250, 0.2); state.salah_jawab++; }
+        ch2_p2();
+    }
+
+    // --- TEKA-TEKI 6 (BARU) ---
+    function ch2_p2() {
+        bersihkan();
+        cetak("--- TEKA-TEKI 6: CAIRAN MISTERIUS ---", "clue-alert");
+        cetak("Di tempat sampah dapur, Anda menemukan botol kecil tanpa label berisi sisa cairan berbau almond pahit.");
+        cetak("Sains forensik dasar mendikte bahwa bau almond pahit yang pekat adalah ciri utama dari racun berbahaya berjenis apa?");
+
+        controlArea.innerHTML = `
+            <div class="input-wrapper">
+                <input type="text" id="input6" placeholder="Ketik nama senyawa racun..." autocomplete="off">
+                <button class="action-btn" onclick="validasi_ch2_p2()">Kirim</button>
+            </div>
+        `;
+        document.getElementById('input6').focus();
+    }
+
+    function validasi_ch2_p2() {
+        const jawab = document.getElementById('input6').value.trim().toLowerCase();
+        if (jawab.includes("sianida") || jawab.includes("cyanide")) { 
+            playSound(600, 0.1); 
+            state.sisa_racun = true;
+        } else { playSound(250, 0.2); state.salah_jawab++; }
+        ch2_p3();
+    }
+
+    // --- TEKA-TEKI 7 (BARU) ---
+    function ch2_p3() {
+        bersihkan();
+        cetak("--- TEKA-TEKI 7: LOGIKA KUNCI DUPLIKAT ---", "clue-alert");
+        cetak("Pintu kamar korban terkunci dari dalam, dan kunci aslinya ada di kantong celana Arthur.");
+        cetak("Namun, Anda menemukan goresan logam baru yang kasar pada lubang kunci pintu kamar tidur. Ini membuktikan bahwa pintu dikunci dari luar menggunakan kunci jenis apa?");
+
+        controlArea.innerHTML = `
+            <div class="input-wrapper">
+                <input type="text" id="input7" placeholder="Ketik jenis kunci (2 kata)..." autocomplete="off">
+                <button class="action-btn" onclick="validasi_ch2_p3()">Kirim</button>
+            </div>
+        `;
+        document.getElementById('input7').focus();
+    }
+
+    function validasi_ch2_p3() {
+        const jawab = document.getElementById('input7').value.trim().toLowerCase();
+        if (jawab.includes("cadangan") || jawab.includes("duplikat")) { 
+            playSound(600, 0.1); 
+            state.kunci_cadangan = true;
+        } else { playSound(250, 0.2); state.salah_jawab++; }
+        ch2_p4();
+    }
+
+    // --- TEKA-TEKI 8 ---
+    function ch2_p4() {
+        bersihkan();
+        cetak("--- TEKA-TEKI 8: DEKRIPSI BRANKAS ---", "clue-alert");
+        cetak("Di balik lukisan dinding, brankas Arthur memiliki instruksi PIN: <i>'Perkalian kedua digitku menghasilkan 24. Jumlah kedua digitku adalah 11. Digit pertamaku lebih besar.'</i>");
+        cetak("Berapakah nomor PIN 2-digit brankas rahasia tersebut?");
+
+        controlArea.innerHTML = `
+            <div class="input-wrapper">
+                <input type="text" id="input8" placeholder="Masukkan 2 digit angka..." autocomplete="off">
+                <button class="action-btn" onclick="validasi_ch2_p4()">Kirim</button>
+            </div>
+        `;
+        document.getElementById('input8').focus();
+    }
+
+    function validasi_ch2_p4() {
+        const jawab = document.getElementById('input8').value.trim();
+        if (jawab === "83") {
+            playSound(700, 0.1);
+            state.bukti_asuransi = true;
+            invStatus.innerText = "Polis Asuransi & Bukti Kunci";
+        } else { playSound(250, 0.2); state.salah_jawab++; }
+        
+        // Evaluasi apakah pemain gagal total menjawab soal
+        if (state.salah_jawab >= 6) {
+            ending_kegagalan_total();
+        } else {
+            ch3_p1();
+        }
+    }
+
+    // --- ENDING 6 ---
+    function ending_kegagalan_total() {
+        bersihkan();
+        triggerEfekKilat();
+        cetak("[ ENDING 6: DETEKTIF GADUNGAN (AMATEUR ENDING) ]", "danger-text");
+        cetak("Lebih dari 6 analisis Anda meleset dan tidak berdasar fakta. Tuan Ardy mendesah kecewa dan memanggil polisi asli untuk mengawal Anda keluar dari mansion karena dianggap merusak TKP.", "system-msg");
+        tampilkanMulaiLagi();
+    }
+
+    // --- CHAPTER 3 PART 1 ---
+    function ch3_p1() {
+        bersihkan();
+        triggerEfekKilat();
+        cetak("CHAPTER 3: KONFRONTASI DARURAT", "danger-text");
+        cetak("Clara mendadak menarik pistol dari balik gaunnya dan menodongkannya tepat ke dada Anda!", "danger-text");
+        cetak("<b>[!] KODE RAHASIA DETEKSI REALITAS:</b> Jika Anda memegang kode bypass angka alfabet global, masukkan di bawah ini.", "secret-text");
+        cetak("Apa tindakan instan Anda di bawah moncong senjata?");
+
+        controlArea.innerHTML = `
+            <button onclick="eksekusi_rute('A')">[A] SERANG Clara secara frontal demi merebut senjata.</button>
+            <button onclick="eksekusi_rute('B')">[B] INTEROGASI PSIKOLOGIS dengan membeberkan bukti motifnya.</button>
+            <button onclick="eksekusi_rute('C')">[C] KABUR KE LORONG untuk meminta bantuan Jon dan Ardy.</button>
+            <div class="input-wrapper" style="margin-top:15px;">
+                <input type="text" id="secret_input" placeholder="🔑 Masukkan Kode Angka Rahasia..." autocomplete="off">
+                <button class="action-btn" style="background: #b45309;" onclick="validasi_secret()">BYPASS KODE</button>
+            </div>
+        `;
+    }
+
+    function eksekusi_rute(rute) {
+        if (rute === 'A') {
+            bersihkan();
+            cetak("[Part 2: Pertarungan Fisik]", "danger-text");
+            cetak("Clara berteriak histeris: 'Sebutkan satu kata kunci dokumen ini atau mati!' Anagram pertahanan hidup: <b>'A M T I'</b>");
+            controlArea.innerHTML = `
+                <div class="input-wrapper">
+                    <input type="text" id="input_a" placeholder="Ketik kata..." autocomplete="off">
+                    <button class="action-btn" onclick="ending_ruteA()">Kirim</button>
+                </div>
+            `;
+            document.getElementById('input_a').focus();
+        } else if (rute === 'B') {
+            bersihkan();
+            cetak("[Part 2: Tekanan Psikologis]", "clue-alert");
+            cetak("Clara membentak: 'Jangan menggertak! Sebutkan fokus kompensasi utama yang menuntunku melakukan semua ini?!'");
+            controlArea.innerHTML = `
+                <div class="input-wrapper">
+                    <input type="text" id="input_b" placeholder="Ketik motif utama..." autocomplete="off">
+                    <button class="action-btn" onclick="ending_ruteB()">Kirim</button>
+                </div>
+            `;
+            document.getElementById('input_b').focus();
+        } else {
+            bersihkan();
+            cetak("[Part 2: Koridor Persimpangan]", "purple-text");
+            cetak("Anda melompat ke lorong gelap dan bertemu Jon serta Ardy. Clara mengejar dan berteriak: 'Mereka berdua sekongkol memeras harta suamiku!'");
+            cetak("Siapa aliansi yang Anda pilih? (Ketik: <b>CLARA</b> / <b>JON</b> / <b>ARDY</b>)");
+            controlArea.innerHTML = `
+                <div class="input-wrapper">
+                    <input type="text" id="input_c" placeholder="Ketik satu nama..." autocomplete="off">
+                    <button class="action-btn" onclick="ending_ruteC()">Pilih</button>
+                </div>
+            `;
+            document.getElementById('input_c').focus();
+        }
+    }
+
+    // --- VALIDASI SECRET ENDING ---
+    function validasi_secret() {
+        const jawab = document.getElementById('secret_input').value.trim();
+        if (jawab === "11121") {
+            bersihkan();
+            playSound(880, 0.1);
+            cetak("[ ★ SECRET ENDING: SYSTEM OVERRIDE ★ ]", "secret-text");
+            cetak("Akses disetujui! Dimensi game membeku. Anda berhasil memecahkan teka-teki enkripsi alfabet nama file utama MediaFire.", "secret-text");
+            
+            const linkA = document.createElement('p');
+            linkA.innerHTML = `📁 Unduh Berkas Hadiah Anda: <a href="https://www.mediafire.com/file/cix4l6h9jt2gvqf/...._.._-_..-_-._--..html/file" target="_blank" class="secret-link">KLIK DI SINI UNTUK MEMBUKA FILE KAU_HEBAT.HTML</a>`;
+            logArea.appendChild(linkA);
+            
+            tampilkanMulaiLagi();
+        } else {
+            playSound(150, 0.5, 'sawtooth');
+            alert("KODE SALAH! Enkripsi gagal dilewati.");
+        }
+    }
+
+    function ending_ruteA() {
+        const jawab = document.getElementById('input_a').value.trim().toLowerCase();
+        bersihkan();
+        if (jawab === "mati") {
+            triggerEfekKilat();
+            cetak("[ ENDING 1: KEADILAN MUTLAK (TRUE ENDING) ]", "ansi-green");
+            cetak("Tepat! Kata kunci menghentikan fokus Clara. Anda membanting lengannya, merebut senjata, dan berhasil mengamankan pelaku pembunuhan berencana.", "clue-alert");
+        } else {
+            triggerEfekKilat();
+            cetak("[ ENDING 2: JALUR DARAH MANSION (BAD ENDING) ]", "danger-text");
+            cetak("Sandi salah. Timah panas menembus ulu hati Anda sebelum Anda sempat mendekat.", "danger-text");
+        }
+        tampilkanMulaiLagi();
+    }
+
+    function ending_ruteB() {
+        const jawab = document.getElementById('input_b').value.trim().toLowerCase();
+        const betul = (jawab.includes("asuransi") || jawab.includes("harta") || jawab.includes("uang"));
+        bersihkan();
+        if (betul) {
+            if (state.bukti_asuransi && state.sisa_racun && state.kunci_cadangan) {
+                cetak("[ ENDING 3: REVOLUSI PSIKOLOGIS (GOOD ENDING) ]", "ansi-green");
+                cetak("Sempurna! Anda menyodorkan fakta berlapis dari brankas, sisa racun sianida dapur, dan goresan kunci duplikat. Clara jatuh berlutut sambil menangis lalu menyerahkan diri.", "clue-alert");
+            } else {
+                triggerEfekKilat();
+                cetak("[ ENDING 4: BURONAN BADAI MALAM (BITTER ENDING) ]", "ansi-yellow");
+                cetak("Anda menebak motifnya, tapi gagal menyodorkan bukti forensik yang lengkap karena tidak meneliti TKP dengan jeli. Clara menembak lampu hingga hancur dan melarikan diri ke dalam kegelapan.", "ansi-yellow");
+            }
+        } else {
+            triggerEfekKilat();
+            cetak("[ ENDING 5: ANALISIS MATI (WORST ENDING) ]", "danger-text");
+            cetak("Tebakan motif Anda keliru. Clara menganggap Anda ancaman tidak berguna dan menarik pelatuk pistolnya.", "danger-text");
+        }
+        tampilkanMulaiLagi();
+    }
+
+    function ending_ruteC() {
+        const jawab = document.getElementById('input_c').value.trim().toUpperCase();
+        bersihkan();
+        if (jawab === "CLARA") {
+            cetak("[ ENDING 7: OPERASI PLOT TWIST (TWIST ENDING) ]", "purple-text");
+            cetak("Pilihan brilian! Bersekutu dengan Clara mengungkap konspirasi rahasia. Berkas di saku Ardy membuktikan bahwa Tuan Arthur sebenarnya memalsukan kematiannya dibantu Jon dan Ardy untuk menghindari jeratan utang raksasa!", "clue-alert");
+        } else if (jawab === "ARDY" || jawab === "JON") {
+            triggerEfekKilat();
+            cetak("[ ENDING 8: DIKHIANATI PERSEKUTUAN (BETRAYAL ENDING) ]", "danger-text");
+            cetak(`Anda berlindung di belakang ${jawab}. Sesaat kemudian, sebuah pukulan keras mendarat di kepala belakang Anda. Mereka menjebak Anda sebagai kambing hitam pembunuhan ini.`, "system-msg");
+        } else {
+            triggerEfekKilat();
+            cetak("[ ENDING 5: ANALISIS MATI (WORST ENDING) ]", "danger-text");
+            cetak("Keraguan Anda membuat Clara melepaskan tembakan acak di koridor yang merenggut nyawa Anda.", "danger-text");
+        }
+        tampilkanMulaiLagi();
+    }
+
+    function tampilkanMulaiLagi() {
+        controlArea.innerHTML = `
+            <div style="margin-bottom: 10px; padding: 12px; background: #1a1d29; border: 1px solid #2a3147; border-radius: 6px;">
+                <span class="secret-text">🧩 PETUNJUK KODE BYPASS RAHASIA:</span><br>
+                <small style="color:#9ca3af;">
+                Nama file di tautan MediaFire adalah kata <b>"KAU"</b>.<br>
+                Gunakan urutan posisi alfabet standar (A=1, B=2, dst.): <b>K</b>=11, <b>A</b>=1, <b>U</b>=21.<br>
+                Gabungkan angka-angka tersebut tanpa spasi untuk melakukan bypass di Chapter 3!
+                </small>
+            </div>
+            <button class="action-btn" onclick="scene_menu()">↩ Main Lagi / Cari Ending Lain</button>
+        `;
+    }
+
+    window.onload = scene_menu;
+</script>
+</body>
+</html>
